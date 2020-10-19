@@ -1,0 +1,4 @@
+com/redhat/devtools/recognizer/Language.class
+com/redhat/devtools/recognizer/JavaLanguageRecognizer.class
+com/redhat/devtools/recognizer/LanguageRecognizer.class
+com/redhat/devtools/recognizer/LanguageHandler.class
