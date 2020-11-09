@@ -14,18 +14,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.io.FilenameUtils;
-import org.xml.sax.SAXException;
 
 
 import static java.util.stream.Collectors.counting;
@@ -41,12 +36,10 @@ public class LanguageRecognizer {
         LanguageHandler handler = LanguageHandler.get();
 
         // get directory and extract all files
-        Path root = Paths.get(args[0]);
         List<String> files = Collections.emptyList();
         try {
-            files = getFiles(root);
+            files = getFiles(Paths.get(args[0]));
         } catch (IOException e) {}
-
 
         // save all extensions extracted from files + their occurrences
         Map<String, Long> extensions = files.stream().collect(groupingBy(file -> "." + FilenameUtils.getExtension(file), counting()));
@@ -68,47 +61,46 @@ public class LanguageRecognizer {
                 mapToLong(lang -> languagesDetected.get(lang)).sum();
 
         // only keep programming language which consists of atleast the 2% of the project
+        List<String> finalFiles = files;
         Map<Language, Double> programmingLanguagesDetected = languagesDetected.keySet().stream().
                 filter(lang -> lang.getType().equalsIgnoreCase("programming")).
                 filter(lang -> (double)languagesDetected.get(lang) / totalProgrammingOccurences > 0.02).
-                collect(Collectors.toMap(lang -> lang, lang -> (double)languagesDetected.get(lang) / totalProgrammingOccurences * 100));
-
-        // if java is a programming language, find more infos
-        Optional<Language> java = programmingLanguagesDetected.keySet().stream().filter(lang -> lang.getName().equalsIgnoreCase("java")).findFirst();
-        if (java.isPresent()) {
-            String javaLanguage = "";
-            try {
-                javaLanguage = JavaLanguageRecognizer.getJava(files);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ParserConfigurationException e) {
-                e.printStackTrace();
-            } catch (SAXException e) {
-                e.printStackTrace();
-            }
-            Language javaLang = java.get();
-            double percJava = programmingLanguagesDetected.remove(javaLang);
-            javaLang.setName(javaLanguage);
-            programmingLanguagesDetected.put(javaLang, percJava);
-        }
+                collect(Collectors.toMap(lang -> getDetailedLanguage(lang, finalFiles), lang -> (double)languagesDetected.get(lang) / totalProgrammingOccurences * 100));
 
         AtomicReference<String> t = new AtomicReference<>("");
         programmingLanguagesDetected.entrySet().stream().sorted(Collections.reverseOrder(Map.Entry.comparingByValue())).forEachOrdered(e -> {
             t.updateAndGet(v1 -> v1 + e.getKey().getName() + String.format(" % .2f", e.getValue()) + "%\n");
         });
 
-        // if multiple languages are found, get content from files and check their syntax
-
         // print language
         System.out.println(t.get());
     }
 
+    private static Language getDetailedLanguage(Language language, List<String> files) {
+        String detailedName = "";
+        try {
+            switch (language.getName().toLowerCase()) {
+                case "java": {
+                    detailedName = JavaRecognizer.getJava(files);
+                }
+                case "python": {
+                    detailedName = PythonRecognizer.getPython(files);
+                }
+            }
+        } catch(Exception ex) {}
+
+        if (detailedName.isEmpty())
+        {
+            return language;
+        }
+
+        language.setName(detailedName);
+        return language;
+    }
 
     private static List<String> getFiles(Path rootDirectory) throws IOException {
         return Files.walk(rootDirectory, Integer.MAX_VALUE).filter(Files::isRegularFile).map(String::valueOf)
                 .collect(Collectors.toList());
 
     }
-
-
 }

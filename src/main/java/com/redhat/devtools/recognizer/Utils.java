@@ -10,32 +10,13 @@
  ******************************************************************************/
 package com.redhat.devtools.recognizer;
 
-public class Language {
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
-    private String name;
-    private String type;
-    private String group;
+public class Utils {
 
-    public Language(String name, String type, String group) {
-        this.name = name;
-        this.type = type;
-        this.group = group;
+    public static boolean IsTagInFile(String file, String tag) throws IOException {
+        return Files.readAllLines(Paths.get(file)).stream().anyMatch(line -> line.contains(tag));
     }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getGroup() {
-        return group;
-    }
-
-    public String getType() {
-        return type;
-    }
-
 }

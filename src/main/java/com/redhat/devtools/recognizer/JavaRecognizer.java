@@ -11,7 +11,6 @@
 package com.redhat.devtools.recognizer;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -25,71 +24,55 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-public class JavaLanguageRecognizer {
+public class JavaRecognizer {
 
     public static String getJava(List<String> files) throws ParserConfigurationException, SAXException, IOException {
         String result = "JAVA ";
+
+        // find builder
         Optional<String> gradle = files.stream().filter(file -> FilenameUtils.getName(file).equalsIgnoreCase("build.gradle")).findFirst();
         Optional<String> maven = files.stream().filter(file -> FilenameUtils.getName(file).equalsIgnoreCase("pom.xml")).findFirst();
         Optional<String> ant = files.stream().filter(file -> FilenameUtils.getName(file).equalsIgnoreCase("build.xml")).findFirst();
-        Path file = null;
+
         if (gradle.isPresent()) {
-            file = Paths.get(gradle.get());
-            result += "Gradle ";
+            result += "Gradle " + getJavaFramework(gradle.get(), true);
         } else if (maven.isPresent()) {
-            file = Paths.get(maven.get());
-            result += "Maven ";
+            result += "Maven " + getJavaFramework(maven.get(), false);
         } else if (ant.isPresent()) {
             result += "Ant ";
-        }
-
-        if (file != null) {
-            boolean hasQuarkus = hasQuarkus(file, gradle.isPresent(), maven.isPresent());
-            if (hasQuarkus) {
-                result += "Quarkus ";
-            }
-            boolean hasSpring = hasSpringBoot(file, gradle.isPresent(), maven.isPresent());
-            if (hasSpring) {
-                result += "Spring ";
-            }
-            boolean hasOpenLiberty = hasOpenLiberty(file, gradle.isPresent(), maven.isPresent());
-            if (hasOpenLiberty) {
-                result += "OpenLiberty ";
-            }
         }
 
         return result;
     }
 
-    public static boolean hasOpenLiberty(Path file, boolean isGradle, boolean isMaven) throws IOException, ParserConfigurationException, SAXException {
-        String openTag = "io.openliberty";
-        if (isGradle) {
-            return hasDependencyInGradle(file, openTag);
-        } else if (isMaven) {
-            return hasGroupIdMaven(file, openTag);
+    private static String getJavaFramework(String file, boolean isGradle) throws ParserConfigurationException, SAXException, IOException {
+        String result = "";
+        boolean isMaven = !isGradle;
+        boolean hasQuarkus = hasDependency(file, "io.quarkus", isGradle, isMaven);
+        if (hasQuarkus) {
+            result += "Quarkus ";
         }
-        return false;
+        boolean hasSpring = hasDependency(file, "org.springframework", isGradle, isMaven);
+        if (hasSpring) {
+            result += "Spring ";
+        }
+        boolean hasOpenLiberty = hasDependency(file, "io.openliberty", isGradle, isMaven);
+        if (hasOpenLiberty) {
+            result += "OpenLiberty ";
+        }
+        boolean hasMicronaut = hasDependency(file, "io.micronaut", isGradle, isMaven);
+        if (hasMicronaut) {
+            result += "Micronaut ";
+        }
+        return result;
     }
 
-    public static boolean hasSpringBoot(Path file, boolean isGradle, boolean isMaven) throws IOException, ParserConfigurationException, SAXException {
-        String springTag = "org.springframework";
+    private static boolean hasDependency(String file, String tag, boolean isGradle, boolean isMaven) throws IOException, ParserConfigurationException, SAXException {
         if (isGradle) {
-            return hasDependencyInGradle(file, springTag);
+            return Utils.IsTagInFile(file, tag);
         } else if (isMaven) {
-            return hasGroupIdMaven(file, springTag);
+            return hasGroupIdMaven(Paths.get(file), tag);
         }
-
-        return false;
-    }
-
-    public static boolean hasQuarkus(Path file, boolean isGradle, boolean isMaven) throws IOException, ParserConfigurationException, SAXException {
-        String quarkusTag = "io.quarkus";
-        if (isGradle) {
-            return hasDependencyInGradle(file, quarkusTag);
-        } else if (isMaven) {
-            return hasGroupIdMaven(file, quarkusTag);
-        }
-
         return false;
     }
 
@@ -106,9 +89,5 @@ public class JavaLanguageRecognizer {
             }
         }
         return false;
-    }
-
-    private static boolean hasDependencyInGradle(Path file, String dependency) throws IOException {
-        return Files.readAllLines(file).stream().anyMatch(line -> line.contains(dependency));
     }
 }

@@ -88,10 +88,6 @@ public class LanguageHandler {
         return extensionXLanguage.getOrDefault(extension, Collections.emptyList());
     }
 
-    public List<Language> getLanguagesByFilename(String filename) {
-        return filenameXLanguage.getOrDefault(filename, Collections.emptyList());
-    }
-
     public Language getLanguageByName(String name) {
         return languages.get(name);
     }
