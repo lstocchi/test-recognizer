@@ -88,9 +88,11 @@ public class LanguageRecognizer {
             switch (language.getName().toLowerCase()) {
                 case "java": {
                     detailedName = JavaRecognizer.getJava(files);
+                    break;
                 }
                 case "python": {
                     detailedName = PythonRecognizer.getPython(files);
+                    break;
                 }
             }
         } catch(Exception ex) {}
